@@ -39,7 +39,7 @@ The final protected live-instance comparison found **zero changes across 2,392 f
 
 ## Limits
 
-- ProjectExpansion implements independent static-price exchange paths and is unsupported. It is disabled in the test copy. Base ProjectE condensers pause in market mode to prevent their fixed-price route bypassing the market; their contents are retained.
+- Stock ProjectExpansion implements independent static-price exchange paths and is unsupported. It was disabled for the original market tests described above. A subsequent [compatibility fork](https://github.com/dkalinichenko-js/ProjectExpansion/tree/dynamic-market-compat) retains the addon with selective exchange guards; its own report records that validation. Base ProjectE condensers pause in market mode to prevent their fixed-price route bypassing the market; their contents are retained.
 - Arbitrary mod-machine recipes need adapters or root overrides. Worldgen estimates use nominal vein size/count, not measured extraction yield or progression detection.
 - The index stabilizes its basket, not a minimum price for every item. Tiny positive amounts retain decimal accounting and engineering notation; no per-item floor distorts their ratios.
 - Legacy integer EMC APIs remain in real units. Addons must use the market API for exchange and explicitly convert display units; unchanged third-party interfaces are not implicitly supported.
