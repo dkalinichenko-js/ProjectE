@@ -5,6 +5,7 @@ import moze_intel.projecte.api.ItemInfo;
 import moze_intel.projecte.api.capabilities.IKnowledgeProvider;
 import moze_intel.projecte.api.capabilities.PECapabilities;
 import moze_intel.projecte.gameObjs.container.TransmutationContainer;
+import moze_intel.projecte.market.MarketService;
 import moze_intel.projecte.network.packets.IPEPacket;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -34,6 +35,16 @@ public record KnowledgeSyncChangePKT(ItemInfo change, boolean learned) implement
 		Player player = context.player();
 		IKnowledgeProvider knowledge = player.getCapability(PECapabilities.KNOWLEDGE_CAPABILITY);
 		if (knowledge != null) {
+			if (MarketService.enabled(player)) {
+				if (learned) {
+					if (!knowledge.hasExplicitKnowledge(change) && knowledge.addExplicitKnowledge(change) && player.containerMenu instanceof TransmutationContainer container) {
+						container.transmutationInventory.itemLearned(change);
+					}
+				} else if (knowledge.hasExplicitKnowledge(change) && knowledge.removeExplicitKnowledge(change) && player.containerMenu instanceof TransmutationContainer container) {
+					container.transmutationInventory.itemUnlearned(change);
+				}
+				return;
+			}
 			if (learned) {
 				if (!knowledge.hasKnowledge(change) && knowledge.addKnowledge(change) && player.containerMenu instanceof TransmutationContainer container) {
 					container.transmutationInventory.itemLearned(change);

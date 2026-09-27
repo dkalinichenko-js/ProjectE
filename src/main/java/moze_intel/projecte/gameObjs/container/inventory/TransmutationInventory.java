@@ -2,7 +2,9 @@ package moze_intel.projecte.gameObjs.container.inventory;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -18,6 +20,7 @@ import moze_intel.projecte.api.event.PlayerAttemptLearnEvent;
 import moze_intel.projecte.api.proxy.IEMCProxy;
 import moze_intel.projecte.gameObjs.PETags;
 import moze_intel.projecte.gameObjs.registries.PEItems;
+import moze_intel.projecte.market.MarketService;
 import moze_intel.projecte.utils.MathUtils;
 import moze_intel.projecte.utils.PlayerHelper;
 import moze_intel.projecte.utils.text.SearchQueryParser;
@@ -86,7 +89,17 @@ public class TransmutationInventory extends CombinedInvWrapper {
 	 * @apiNote Call on server only
 	 */
 	public void handleKnowledge(ItemInfo info) {
+		if (MarketService.enabled(player) && info.getItem().is(PEItems.TOME_OF_KNOWLEDGE.getKey())) {
+			return;
+		}
 		ItemInfo cleanedInfo = IEMCProxy.INSTANCE.getPersistentInfo(info);
+		if (MarketService.enabled(player)) {
+			if (!provider.hasExplicitKnowledge(cleanedInfo) && !NeoForge.EVENT_BUS.post(new PlayerAttemptLearnEvent(player, info, cleanedInfo)).isCanceled()
+					&& provider.addExplicitKnowledge(cleanedInfo)) {
+				provider.syncKnowledgeChange((ServerPlayer) player, cleanedInfo, true);
+			}
+			return;
+		}
 		//Pass both stacks to the Attempt Learn Event in case a mod cares about the data component/damage difference when comparing
 		if (!provider.hasKnowledge(cleanedInfo) && !NeoForge.EVENT_BUS.post(new PlayerAttemptLearnEvent(player, info, cleanedInfo)).isCanceled()) {
 			if (provider.addKnowledge(cleanedInfo)) {
@@ -103,6 +116,11 @@ public class TransmutationInventory extends CombinedInvWrapper {
 		learnFlag = 300;
 		unlearnFlag = 0;
 		if (isServer()) {
+			return;
+		}
+		if (MarketService.enabled(player)) {
+			resetSearchPage();
+			updateClientTargets(false);
 			return;
 		}
 		long learnedItemEmc = IEMCProxy.INSTANCE.getValue(learnedItem);
@@ -162,6 +180,12 @@ public class TransmutationInventory extends CombinedInvWrapper {
 	 */
 	public void handleUnlearn(ItemInfo info) {
 		ItemInfo cleanedInfo = IEMCProxy.INSTANCE.getPersistentInfo(info);
+		if (MarketService.enabled(player)) {
+			if (provider.hasExplicitKnowledge(cleanedInfo) && provider.removeExplicitKnowledge(cleanedInfo)) {
+				provider.syncKnowledgeChange((ServerPlayer) player, cleanedInfo, false);
+			}
+			return;
+		}
 		if (provider.hasKnowledge(cleanedInfo) && provider.removeKnowledge(cleanedInfo)) {
 			//Only sync the knowledge changed if the provider successfully removed it
 			provider.syncKnowledgeChange((ServerPlayer) player, cleanedInfo, false);
@@ -175,6 +199,11 @@ public class TransmutationInventory extends CombinedInvWrapper {
 		unlearnFlag = 300;
 		learnFlag = 0;
 		if (isServer()) {
+			return;
+		}
+		if (MarketService.enabled(player)) {
+			resetSearchPage();
+			updateClientTargets(false);
 			return;
 		}
 		long unlearnedItemEmc = IEMCProxy.INSTANCE.getValue(unlearnedItem);
@@ -273,6 +302,10 @@ public class TransmutationInventory extends CombinedInvWrapper {
 	 * @apiNote Call on client only
 	 */
 	public void checkForUpdates() {
+		if (MarketService.enabled(player)) {
+			updateClientTargets(false);
+			return;
+		}
 		long availableEmc = getAvailableEmcAsLong();
 		if (getMaxDisplayedEmc() > availableEmc) {
 			//Available EMC is lower than what we are displaying, we need to update the targets
@@ -292,6 +325,11 @@ public class TransmutationInventory extends CombinedInvWrapper {
 	public void updateClientTargets(boolean checkForEmcChange) {
 		if (isClient()) {
 			long availableEmc = getAvailableEmcAsLong();
+			if (MarketService.enabled(player)) {
+				// A fractional balance or indexed quote can change without changing whole EMC.
+				updateClientTargets(availableEmc);
+				return;
+			}
 			if (!checkForEmcChange) {
 				updateClientTargets(availableEmc);
 			} else if (lastAvailableEmc != availableEmc) {
@@ -309,6 +347,10 @@ public class TransmutationInventory extends CombinedInvWrapper {
 		lastAvailableEmc = availableEMC;
 		for (int i = 0, slots = outputs.getSlots(); i < slots; i++) {
 			outputs.setStackInSlot(i, ItemStack.EMPTY);
+		}
+		if (MarketService.enabled(player)) {
+			updateMarketTargets();
+			return;
 		}
 		record EmcData(ItemInfo info, long emc) {
 		}
@@ -401,6 +443,53 @@ public class TransmutationInventory extends CombinedInvWrapper {
 		}
 	}
 
+	/** Shows only learned, exchangeable items whose complete one-item ask is affordable. */
+	private void updateMarketTargets() {
+		record MarketTarget(ItemInfo info, BigDecimal ask) {
+		}
+		BigDecimal available = getMarketAvailableEmc();
+		List<MarketTarget> knowledge = provider.getExplicitKnowledge().stream()
+				.filter(info -> doesItemMatchFilter(info) && MarketService.canExchange(player, info.createStack()))
+				.map(info -> new MarketTarget(info, MarketService.quote(player, info.createStack(), 1, true)))
+				.filter(target -> target.ask() != null && target.ask().signum() > 0 && target.ask().compareTo(available) <= 0)
+				.sorted(Comparator.comparing(MarketTarget::ask).reversed())
+				.toList();
+		int matter = 0;
+		int fuel = 0;
+		int matterSkipped = 0;
+		int fuelSkipped = 0;
+		ItemStack lock = inputLocks.getStackInSlot(LOCK_INDEX);
+		BigDecimal lockAsk = lock.isEmpty() ? null : MarketService.quote(player, lock, 1, true);
+		if (lockAsk != null && (lockAsk.compareTo(available) > 0 || !provider.hasExplicitKnowledge(lock))) lockAsk = null;
+		if (lockAsk != null) {
+			if (lock.is(PETags.Items.COLLECTOR_FUEL)) {
+				outputs.setStackInSlot(FUEL_START + fuel++, lock.copyWithCount(1));
+			} else {
+				outputs.setStackInSlot(matter++, lock.copyWithCount(1));
+			}
+		}
+		int matterStart = searchPage * (MAX_MATTER_DISPLAY - matter);
+		int fuelStart = searchPage * (MAX_FUEL_DISPLAY - fuel);
+		hasNextPage = false;
+		for (MarketTarget target : knowledge) {
+			if (lockAsk != null && target.info().getItem() == lock.getItem() && target.info().getComponentsPatch().equals(lock.getComponentsPatch())) {
+				continue;
+			}
+			if (lockAsk != null && target.ask().compareTo(lockAsk) > 0) {
+				continue;
+			}
+			if (target.info().getItem().is(PETags.Items.COLLECTOR_FUEL)) {
+				if (fuelSkipped++ < fuelStart) continue;
+				if (fuel < MAX_FUEL_DISPLAY) outputs.setStackInSlot(FUEL_START + fuel++, target.info().createStack());
+				else hasNextPage = true;
+			} else {
+				if (matterSkipped++ < matterStart) continue;
+				if (matter < MAX_MATTER_DISPLAY) outputs.setStackInSlot(matter++, target.info().createStack());
+				else hasNextPage = true;
+			}
+		}
+	}
+
 	/**
 	 * @apiNote Call on client only
 	 */
@@ -412,6 +501,13 @@ public class TransmutationInventory extends CombinedInvWrapper {
 	 * @apiNote Call on server only
 	 */
 	public void writeIntoOutputSlot(int slot, ItemStack item) {
+		if (slot < 0 || slot >= outputs.getSlots()) return;
+		if (MarketService.enabled(player)) {
+			BigDecimal ask = MarketService.quote(player, item, 1, true);
+			outputs.setStackInSlot(slot, ask != null && ask.signum() > 0 && ask.compareTo(getMarketAvailableEmc()) <= 0
+					&& provider.hasExplicitKnowledge(item) ? item.copyWithCount(1) : ItemStack.EMPTY);
+			return;
+		}
 		long emcValue = IEMCProxy.INSTANCE.getValue(item);
 		if (emcValue > 0 && emcValue <= getAvailableEmcAsLong() && provider.hasKnowledge(item)) {
 			outputs.setStackInSlot(slot, item);
@@ -592,6 +688,37 @@ public class TransmutationInventory extends CombinedInvWrapper {
 			}
 		}
 		return emc;
+	}
+
+	/** Whole EMC, including input-slot holders, plus the player's market remainder. */
+	public BigDecimal getMarketAvailableEmc() {
+		return new BigDecimal(getAvailableEmc()).add(MarketService.fraction(player));
+	}
+
+	/** Credit a real-valued market bid without discarding fractional EMC. */
+	public void addMarketEmc(BigDecimal value) {
+		if (!isServer()) throw new IllegalStateException("Market credit must run on the server");
+		if (value.signum() < 0) throw new IllegalArgumentException("Negative market credit");
+		BigDecimal total = MarketService.fraction(player).add(value);
+		BigInteger whole = total.setScale(0, RoundingMode.DOWN).toBigIntegerExact();
+		BigDecimal fraction = total.subtract(new BigDecimal(whole));
+		if (whole.signum() > 0) addEmc(whole);
+		MarketService.setFraction(player, fraction);
+	}
+
+	/** Debit a real-valued ask, using the remainder before whole EMC. */
+	public void removeMarketEmc(BigDecimal value) {
+		if (!isServer()) throw new IllegalStateException("Market debit must run on the server");
+		if (value.signum() < 0 || value.compareTo(getMarketAvailableEmc()) > 0) {
+			throw new IllegalArgumentException("Unaffordable market debit");
+		}
+		BigDecimal remainder = MarketService.fraction(player).subtract(value);
+		if (remainder.signum() < 0) {
+			BigInteger whole = remainder.negate().setScale(0, RoundingMode.CEILING).toBigIntegerExact();
+			removeEmc(whole);
+			remainder = remainder.add(new BigDecimal(whole));
+		}
+		MarketService.setFraction(player, remainder);
 	}
 
 	public void updateFilter(String text) {

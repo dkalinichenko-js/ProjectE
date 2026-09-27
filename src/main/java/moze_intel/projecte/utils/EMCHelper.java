@@ -139,15 +139,18 @@ public final class EMCHelper {
 	}
 
 	public static String formatEmc(Number emc) {
-		return EMC_FORMATTER.format(emc);
+		String indexed = moze_intel.projecte.market.MarketService.formatClient(emc);
+        return indexed == null ? EMC_FORMATTER.format(emc) : indexed;
 	}
 
 	public static String formatEmc(double emc) {
-		return EMC_FORMATTER.format(emc);
+		String indexed = moze_intel.projecte.market.MarketService.formatClient(emc);
+        return indexed == null ? EMC_FORMATTER.format(emc) : indexed;
 	}
 
 	public static String formatEmc(long emc) {
-		return EMC_FORMATTER.format(emc);
+		String indexed = moze_intel.projecte.market.MarketService.formatClient(emc);
+        return indexed == null ? EMC_FORMATTER.format(emc) : indexed;
 	}
 
 	@Range(from = 0, to = Long.MAX_VALUE)

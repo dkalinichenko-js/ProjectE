@@ -57,6 +57,15 @@ public interface IKnowledgeProvider {
 	 */
 	boolean hasKnowledge(@NotNull ItemInfo info);
 
+	/** Checks items actually learned by this player, ignoring the Tome's full-knowledge flag. */
+	default boolean hasExplicitKnowledge(@NotNull ItemInfo info) {
+		return hasKnowledge(info);
+	}
+
+	default boolean hasExplicitKnowledge(@NotNull ItemStack stack) {
+		return !stack.isEmpty() && hasExplicitKnowledge(ItemInfo.fromStack(stack));
+	}
+
 	/**
 	 * @param stack The stack to add to knowledge
 	 *
@@ -75,6 +84,11 @@ public interface IKnowledgeProvider {
 	 * @return Whether the operation was successful
 	 */
 	boolean addKnowledge(@NotNull ItemInfo info);
+
+	/** Records a discovery even when the Tome's full-knowledge flag is set. */
+	default boolean addExplicitKnowledge(@NotNull ItemInfo info) {
+		return addKnowledge(info);
+	}
 
 	/**
 	 * @param stack The stack to remove from knowledge
@@ -95,11 +109,22 @@ public interface IKnowledgeProvider {
 	 */
 	boolean removeKnowledge(@NotNull ItemInfo info);
 
+	/** Removes an explicitly learned item even when the Tome flag is set. */
+	default boolean removeExplicitKnowledge(@NotNull ItemInfo info) {
+		return removeKnowledge(info);
+	}
+
 	/**
 	 * @return An unmodifiable but live view of the knowledge list.
 	 */
 	@NotNull
 	Set<ItemInfo> getKnowledge();
+
+	/** Returns only items actually learned by this player. */
+	@NotNull
+	default Set<ItemInfo> getExplicitKnowledge() {
+		return getKnowledge();
+	}
 
 	/**
 	 * @return The player's input and lock slots

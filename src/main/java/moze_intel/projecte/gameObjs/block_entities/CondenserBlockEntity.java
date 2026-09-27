@@ -111,6 +111,9 @@ public class CondenserBlockEntity extends EmcChestBlockEntity {
 	}
 
 	public static void tickServer(Level level, BlockPos pos, BlockState state, CondenserBlockEntity condenser) {
+        // Fixed-rate condensation bypasses both discovery and the shared market.
+        // Preserve contents while the market economy is active.
+        if (moze_intel.projecte.market.MarketService.enabled(level.getServer())) return;
 		condenser.checkLockAndUpdate(false);
 		condenser.displayEmc = condenser.getStoredEmc();
 		if (condenser.getLockInfo() != null) {

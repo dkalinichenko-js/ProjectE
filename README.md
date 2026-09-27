@@ -1,3 +1,7 @@
+# Dynamic EMC market fork
+
+Experimental Minecraft 1.21.1 fork: inventory-based bid/ask exchange, recipe and ore priors, explicit discovery, fractional accounting, and a commodity-index EMC denomination. See [design and configuration](docs/MARKET_DESIGN.md) and [implementation/testing report](docs/IMPLEMENTATION_REPORT.md). Market mode is enabled by default. ProjectExpansion exchange routes are not supported; base ProjectE condensers pause in market mode. Test on a copied world first.
+
 ![](/src/main/resources/logo.png?raw=true)
 
 Repository for ProjectE, a complete rewrite of EE2 (Equivalent Exchange 2) for modern Minecraft versions. Transmutation tables, collectors, condensers, flying rings, and all the other trinkets you love are here.

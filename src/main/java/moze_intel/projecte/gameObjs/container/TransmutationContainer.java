@@ -1,5 +1,6 @@
 package moze_intel.projecte.gameObjs.container;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,6 +14,7 @@ import moze_intel.projecte.gameObjs.container.slots.transmutation.SlotOutput;
 import moze_intel.projecte.gameObjs.container.slots.transmutation.SlotUnlearn;
 import moze_intel.projecte.gameObjs.items.Tome;
 import moze_intel.projecte.gameObjs.registries.PEContainerTypes;
+import moze_intel.projecte.market.MarketService;
 import moze_intel.projecte.network.packets.to_server.SearchUpdatePKT;
 import moze_intel.projecte.utils.ItemHelper;
 import net.minecraft.network.FriendlyByteBuf;
@@ -118,6 +120,31 @@ public class TransmutationContainer extends PEHandContainer {
 		}
 		if (slotIndex >= 11 && slotIndex <= 26) {
 			ItemStack stack = currentSlot.getItem().copy();
+			if (MarketService.enabled(player)) {
+				if (!transmutationInventory.provider.hasExplicitKnowledge(stack) || !MarketService.canExchange(player, stack)) return ItemStack.EMPTY;
+				stack.setCount(stack.getMaxStackSize());
+				int room = stack.getCount() - ItemHelper.simulateFit(player.getInventory().items, stack);
+				if (room <= 0) return ItemStack.EMPTY;
+				// Cumulative asks include slippage, so find the largest affordable order.
+				int low = 0;
+				int high = room;
+				BigDecimal available = transmutationInventory.getMarketAvailableEmc();
+				while (low < high) {
+					int mid = low + (high - low + 1) / 2;
+					BigDecimal ask = MarketService.quote(player, stack, mid, true);
+					if (ask != null && ask.signum() > 0 && ask.compareTo(available) <= 0) low = mid;
+					else high = mid - 1;
+				}
+				if (low == 0) return ItemStack.EMPTY;
+				if (transmutationInventory.isServer()) {
+					BigDecimal paid = MarketService.trade(player, stack, low, true);
+					if (paid == null || paid.compareTo(available) > 0) return ItemStack.EMPTY;
+					transmutationInventory.removeMarketEmc(paid);
+				}
+				stack.setCount(low);
+				ItemHandlerHelper.insertItemStacked(player.getCapability(ItemHandler.ENTITY), stack, false);
+				return ItemStack.EMPTY;
+			}
 			// Output Slots
 			long itemEmc = IEMCProxy.INSTANCE.getValue(stack);
 			//Double-check the item actually has Emc and something didn't just go terribly wrong
@@ -177,6 +204,19 @@ public class TransmutationContainer extends PEHandContainer {
 				}
 			}
 			//Else if we failed to do that also, transfer to the learn slot if the item has EMC
+			if (MarketService.enabled(player)) {
+				if (MarketService.canExchange(player, stackToInsert)) {
+					if (transmutationInventory.isServer()) {
+						BigDecimal proceeds = MarketService.trade(player, stackToInsert, stackToInsert.getCount(), false);
+						if (proceeds != null && proceeds.signum() > 0) {
+							transmutationInventory.handleKnowledge(stackToInsert);
+							transmutationInventory.addMarketEmc(proceeds);
+							currentSlot.set(ItemStack.EMPTY);
+						}
+					}
+				}
+				return ItemStack.EMPTY;
+			}
 			long emc = IEMCProxy.INSTANCE.getSellValue(stackToInsert);
 			if (emc > 0 || stackToInsert.getItem() instanceof Tome) {
 				if (transmutationInventory.isServer()) {

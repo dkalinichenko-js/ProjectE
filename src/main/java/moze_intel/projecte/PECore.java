@@ -160,6 +160,7 @@ public class PECore {
 		NeoForge.EVENT_BUS.addListener(this::dataPackSync);
 		NeoForge.EVENT_BUS.addListener(this::registerCommands);
 		NeoForge.EVENT_BUS.addListener(this::serverStarting);
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.server.ServerStartedEvent e) -> moze_intel.projecte.market.MarketService.start(e.getServer()));
 		NeoForge.EVENT_BUS.addListener(this::serverQuit);
 		NeoForge.EVENT_BUS.addListener(PEPermissions::registerPermissionNodes);
 		NeoForge.EVENT_BUS.addListener(this::onModifyItemAttributes);
@@ -260,6 +261,8 @@ public class PECore {
 	}
 
 	private void dataPackSync(OnDatapackSyncEvent event) {
+        if (event.getPlayer() != null) moze_intel.projecte.market.MarketService.sync(event.getPlayer());
+        else for (ServerPlayer p : event.getPlayerList().getPlayers()) moze_intel.projecte.market.MarketService.sync(p);
 		if (emcUpdateResourceManager != null) {
 			long start = System.currentTimeMillis();
 			//Clear the cached created tags
@@ -311,6 +314,7 @@ public class PECore {
 				.then(ShowBagCMD.register(context))
 				.then(EMCCMD.register(context))
 				.then(KnowledgeCMD.register(context))
+                .then(moze_intel.projecte.market.MarketCommand.register())
 		);
 	}
 
@@ -321,6 +325,7 @@ public class PECore {
 	}
 
 	private void serverQuit(ServerStoppedEvent event) {
+        moze_intel.projecte.market.MarketService.stop(event.getServer());
 		//Ensure we save any changes to the custom emc file
 		CustomEMCParser.flush(event.getServer().registryAccess());
 		TransmutationOffline.cleanAll();

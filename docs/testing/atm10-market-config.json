@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "liquidityScale": 8.0,
+  "maxOrder": 64,
+  "indexTarget": 256.0,
+  "indexBasket": {"minecraft:diamond": 1.0},
+  "whitelist": ["minecraft:diamond"],
+  "blacklist": ["minecraft:dirt"],
+  "rootPriors": {
+    "minecraft:diamond": [0.016, 0.064, 0.256]
+  }
+}

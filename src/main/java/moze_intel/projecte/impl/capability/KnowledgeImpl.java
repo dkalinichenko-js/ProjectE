@@ -128,6 +128,22 @@ public class KnowledgeImpl implements IKnowledgeProvider {
 	}
 
 	@Override
+	public boolean hasExplicitKnowledge(@NotNull ItemInfo info) {
+		return attachment().knowledge.contains(IEMCProxy.INSTANCE.getPersistentInfo(info));
+	}
+
+	@Override
+	public boolean addExplicitKnowledge(@NotNull ItemInfo info) {
+		if (info.getItem().is(PEItems.TOME_OF_KNOWLEDGE.getKey())) return false;
+		return tryAdd(attachment(), IEMCProxy.INSTANCE.getPersistentInfo(info));
+	}
+
+	@Override
+	public boolean removeExplicitKnowledge(@NotNull ItemInfo info) {
+		return tryRemove(attachment(), IEMCProxy.INSTANCE.getPersistentInfo(info));
+	}
+
+	@Override
 	public boolean addKnowledge(@NotNull ItemInfo info) {
 		KnowledgeAttachment attachment = attachment();
 		if (attachment.fullKnowledge) {
@@ -202,6 +218,12 @@ public class KnowledgeImpl implements IKnowledgeProvider {
 			return Collections.unmodifiableSet(allKnowledge);
 		}
 		return Collections.unmodifiableSet(attachment.knowledge);
+	}
+
+	@NotNull
+	@Override
+	public Set<ItemInfo> getExplicitKnowledge() {
+		return Collections.unmodifiableSet(attachment().knowledge);
 	}
 
 	@NotNull

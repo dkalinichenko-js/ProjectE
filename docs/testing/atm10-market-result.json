@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "date": "2026-09-27",
+  "testedJarSha256": "c3e473ef2b6ffa7aa2900f620ce1d8c1afd25228488f33b538fe95f112eb0ea1",
+  "isolatedAtm10": true,
+  "excludedAddons": ["ProjectExpansion", "mct client addon"],
+  "valuationCount": 7463,
+  "modRootProvenance": "alltheores:raw_osmium from alltheores:ore_osmium_placed, size 16, count 3..3",
+  "recipeDerivedExample": "minecraft:iron_ingot",
+  "phase1": {
+    "status": "PASS",
+    "savedInventoryQ": 1,
+    "fractionalSellEmc": "0.016",
+    "reverseAskEmc": "0.256",
+    "initialIndexScale": 4000.000000000001,
+    "shiftedIndexScale": 4691.015270891784
+  },
+  "phase2AfterFullRestart": {
+    "status": "PASS",
+    "restoredInventoryQ": 1,
+    "slotOutputAskEmc": "0.256",
+    "quickMoveBoughtItems": 64,
+    "quickMoveAskEmc": "16.384",
+    "physicalShiftSellItems": 64,
+    "shiftSellBidEmc": "13.648",
+    "manualClickAskEmc": "0.256",
+    "swapAskEmc": "0.256",
+    "finalInventoryQ": 0,
+    "finalIndexScaleRestored": true
+  },
+  "liveBaseline": {
+    "scope": "2388 config files, 2 ProjectE-related jars, instance.cfg, mmc-pack.json",
+    "filesChecked": 2392,
+    "changedFiles": 0,
+    "saveFilesIncludedInHash": false
+  }
+}

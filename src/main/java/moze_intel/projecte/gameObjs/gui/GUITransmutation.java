@@ -1,9 +1,12 @@
 package moze_intel.projecte.gameObjs.gui;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import moze_intel.projecte.PECore;
 import moze_intel.projecte.gameObjs.container.TransmutationContainer;
 import moze_intel.projecte.gameObjs.container.inventory.TransmutationInventory;
+import moze_intel.projecte.gameObjs.container.slots.transmutation.SlotOutput;
+import moze_intel.projecte.market.MarketService;
 import moze_intel.projecte.utils.EMCHelper;
 import moze_intel.projecte.utils.TransmutationEMCFormatter;
 import moze_intel.projecte.utils.text.PELang;
@@ -14,6 +17,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.lwjgl.glfw.GLFW;
 
@@ -86,8 +90,10 @@ public class GUITransmutation extends PEContainerScreen<TransmutationContainer> 
 	protected void renderLabels(@NotNull GuiGraphics graphics, int x, int y) {
 		graphics.drawString(font, title, titleLabelX, titleLabelY, 0x404040, false);
 		//Don't render inventory as we don't have space
-		graphics.drawString(font, PELang.EMC_TOOLTIP.translate(""), 6, this.imageHeight - 104, 0x404040, false);
-		Component emc = TransmutationEMCFormatter.formatEMC(inv.getAvailableEmc());
+		boolean market = MarketService.enabled(inv.player);
+		graphics.drawString(font, market ? Component.literal("Indexed EMC") : PELang.EMC_TOOLTIP.translate(""), 6, this.imageHeight - 104, 0x404040, false);
+		Component emc = market ? Component.literal(MarketService.format(inv.player, inv.getMarketAvailableEmc()))
+				: TransmutationEMCFormatter.formatEMC(inv.getAvailableEmc());
 		graphics.drawString(font, emc, 6, this.imageHeight - 94, 0x404040, false);
 
 		if (inv.learnFlag > 0) {
@@ -157,6 +163,34 @@ public class GUITransmutation extends PEContainerScreen<TransmutationContainer> 
 
 	@Override
 	protected void renderTooltip(@NotNull GuiGraphics graphics, int mouseX, int mouseY) {
+		if (MarketService.enabled(inv.player) && hoveredSlot != null && hoveredSlot.hasItem()) {
+			ItemStack hovered = hoveredSlot.getItem();
+			if (MarketService.canExchange(inv.player, hovered)) {
+				boolean output = hoveredSlot instanceof SlotOutput;
+				int fullCount = output ? hovered.getMaxStackSize() : hovered.getCount();
+				BigDecimal unit = MarketService.quote(inv.player, hovered, 1, output);
+				BigDecimal full = MarketService.quote(inv.player, hovered, fullCount, output);
+				if (unit != null) {
+					String action = output ? "Buy" : "Sell";
+					String text = hovered.getHoverName().getString() + "  |  " + action + " 1: " + MarketService.format(inv.player, unit) + " indexed EMC";
+					if (fullCount > 1 && full != null) {
+						text += "  |  " + action + " " + fullCount + ": " + MarketService.format(inv.player, full) + " indexed EMC";
+					}
+					setTooltipForNextRenderPass(Component.literal(text));
+					return;
+				}
+			}
+		}
+		if (MarketService.enabled(inv.player)) {
+			int emcLeft = leftPos;
+			int emcTop = 95 + topPos;
+			if (mouseX > emcLeft && mouseX < emcLeft + 82 && mouseY > emcTop && mouseY < emcTop + 15) {
+				setTooltipForNextRenderPass(Component.literal("Indexed EMC: " + MarketService.format(inv.player, inv.getMarketAvailableEmc())));
+			} else {
+				super.renderTooltip(graphics, mouseX, mouseY);
+			}
+			return;
+		}
 		BigInteger emcAmount = inv.getAvailableEmc();
 
 		if (emcAmount.compareTo(MAX_EXACT_TRANSMUTATION_DISPLAY) < 0) {

@@ -73,6 +73,7 @@ public final class PacketHandler {
 	}
 
 	private void registerServerToClient(PacketRegistrar registrar) {
+        registrar.play(moze_intel.projecte.market.MarketSync.TYPE, moze_intel.projecte.market.MarketSync.STREAM_CODEC);
 		resetCooldown = registrar.playInstanced(PECore.rl("reset_cooldown"), (ignored, context) -> context.player().resetAttackStrengthTicker());
 		clearKnowledge = registrar.playInstanced(PECore.rl("clear_knowledge"), (ignored, context) -> {
 			Player player = context.player();
