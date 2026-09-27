@@ -6,7 +6,7 @@ The market is enabled by default in this experimental fork (`enabled: false` res
 
 On first initialization of a world, the market builds a finite price distribution for each supported item. Natural resources are roots. Vanilla natural resources have broad estimated ranges; items in `c:ores` and `c:raw_materials` receive material estimates where possible. Registered placed ore features supply a bounded scarcity adjustment from their configured vein size and count. This is an *opportunity signal*, not an observed yield: dimension, biome, height, exposure, replacement and processing methods affect actual acquisition cost. The initial figures set a relative EMC scale and are tunable estimates.
 
-Crafting, smelting, blasting, smoking, campfire cooking and stonecutting recipes propagate these root valuations. Ingredient costs are summed and divided by output count. Alternative routes supply distinct price hypotheses, capped to the six cheapest supported routes to keep computation bounded. Cyclic routes, special recipes, ingredients with reusable containers, component-dependent outputs and unsupported processing types are omitted. An item with no supported root or recipe route has no market quote unless explicitly configured. Valuation provenance names root estimates, worldgen features and recipe IDs and is visible in `/projecte market inspect`.
+Crafting, smelting, blasting, smoking, campfire cooking and stonecutting recipes propagate these root valuations. Ingredient costs are summed and divided by output count. Alternative routes supply distinct price hypotheses, capped to the six cheapest supported routes to keep computation bounded. Cyclic routes, special recipes, ingredients with reusable containers, component-dependent outputs and unsupported processing types are omitted. For an item with no supported root or recipe route, the default fallback uses its positive existing ProjectE EMC value. With `fallbackSpread: 0.25`, a value of 100 creates support prices `[75, 100, 125]` with equal weights, giving an initial real bid of 75 and ask of 125. Items without either a supported prior or a positive legacy value still need an explicit root override. Valuation provenance names root estimates, worldgen features and recipe IDs and is visible in `/projecte market inspect`.
 
 `rootPriors` replaces a root distribution before recipe propagation for a newly initialized world. For example, this `config/ProjectE/market.json` supplies a narrower iron prior and restricts exchange to two items:
 
@@ -15,6 +15,8 @@ Crafting, smelting, blasting, smoking, campfire cooking and stonecutting recipes
   "enabled": true,
   "liquidityScale": 4096,
   "maxOrder": 4096,
+  "legacyEmcFallback": true,
+  "fallbackSpread": 0.25,
   "indexTarget": 256,
   "indexBasket": {
     "minecraft:raw_iron": 1.0,
@@ -32,6 +34,8 @@ Crafting, smelting, blasting, smoking, campfire cooking and stonecutting recipes
 ```
 
 An empty whitelist permits any item with a valuation unless blacklisted. A nonempty whitelist permits only listed IDs. The config is loaded when the server starts. Prior distributions, liquidity, index basket and index target are saved with the world when its market is first initialized; editing them later does not reprice an existing world or reset its inventory. Make a world backup before deliberately changing saved market state. Invalid config fails startup rather than silently changing the economy.
+
+Legacy fallback priors are also added to **existing saved worlds**, after ProjectE finishes loading its fixed EMC mappings and before market snapshots reach clients. This only fills missing entries: it preserves all existing priors, inventory positions, player fractions, index settings, balances, and explicit discoveries. New entries start at inventory zero and are persisted normally. Startup and datapack synchronization can add missing valuations; they never reprice existing ones. `legacyEmcFallback: false` stops new fallback creation, while previously saved fallback entries remain frozen. `fallbackSpread` must be strictly between 0 and 1 and applies only when an entry is first created. Whitelist/blacklist, discovery, component and EMC-holder restrictions still apply; a fallback price does not override them.
 
 ## Inventory pricing
 

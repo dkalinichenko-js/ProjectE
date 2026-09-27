@@ -45,3 +45,10 @@ The final protected live-instance comparison found **zero changes across 2,392 f
 - Legacy integer EMC APIs remain in real units. Addons must use the market API for exchange and explicitly convert display units; unchanged third-party interfaces are not implicitly supported.
 - Trade settlement runs serially on the server thread. It does not provide a database-style rollback if an external EMC-holder capability throws during settlement.
 - This is an experimental fork, not a claim of complete economic balance across all ATM10 automation or addon paths.
+
+
+## Legacy EMC fallback update (market.3)
+
+The first market version hid otherwise learned items whose recipe or root prior was unavailable, even when ProjectE assigned a positive static value. Market.3 fills those gaps with `[0.75 * EMC, EMC, 1.25 * EMC]` by default. `legacyEmcFallback` and `fallbackSpread` configure creation. Existing saved worlds receive missing entries without resetting prior distributions, inventory, balances, fractions, index settings, or discovery. Recipe/root priors remain authoritative for items that already have them.
+
+Legacy EMC mapping now completes before fallback creation and market synchronization. Saved-world regression tests cover non-destructive backfill, idempotence, spread/round-trip behavior, and high values. Runtime and deployment evidence for this update is recorded in [the fallback report](testing/FALLBACK_REPORT.md).

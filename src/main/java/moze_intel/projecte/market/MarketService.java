@@ -46,6 +46,7 @@ public final class MarketService {
                 data.initialized = true; data.setDirty();
                 PECore.LOGGER.info("Dynamic EMC market initialized with {} valuations", data.entries.size());
             }
+            addFallbacks(config, data);
             if (data.initialized && data.indexBasket.isEmpty()) {
                 config.indexBasket.forEach((id,weight) -> {
                     if (!data.entries.containsKey(id)) throw new IllegalArgumentException("Index commodity has no valuation: " + id);
@@ -66,6 +67,25 @@ public final class MarketService {
             return new State(config, data);
         });
     }
+    private static void addFallbacks(MarketConfig config, MarketSavedData data) {
+        if (!config.enabled || !config.legacyEmcFallback || !data.initialized) return;
+        Map<String, Long> legacyValues = new TreeMap<>();
+        for (var item : BuiltInRegistries.ITEM) {
+            String id = BuiltInRegistries.ITEM.getKey(item).toString();
+            if (data.entries.containsKey(id)) continue;
+            long emc = moze_intel.projecte.api.proxy.IEMCProxy.INSTANCE.getValue(new ItemStack(item));
+            if (emc > 0) legacyValues.put(id, emc);
+        }
+        int added = MarketFallback.addMissing(data, legacyValues, config.fallbackSpread);
+        if (added > 0) PECore.LOGGER.info("Dynamic EMC market added {} legacy-EMC fallback priors (spread {})", added, config.fallbackSpread);
+    }
+
+    /** Called after legacy EMC mapping is ready, including datapack reloads. Never reprices existing entries. */
+    public static void refreshFallbacks(MinecraftServer server) {
+        State s = state(server);
+        addFallbacks(s.config, s.data);
+    }
+
     private static void validateIndex(MarketSavedData data) {
         if (data.indexBasket.isEmpty()) return;
         double[] lows = new double[data.indexBasket.size()], highs = new double[lows.length], weights = new double[lows.length];

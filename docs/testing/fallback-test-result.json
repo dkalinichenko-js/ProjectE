@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "testedJarSha256": "f5fc4a05224ea0b18b037ed3b80e174777639d8b2c78f72055e9096be4ac272c",
+  "isolatedAtm10": true,
+  "existingSavedWorld": true,
+  "fallbackCount": 42966,
+  "sampleId": "actuallyadditions:advanced_coil",
+  "staticEmc": "2084",
+  "sellBidRealEmc": "1563.0",
+  "buyAskRealEmc": "2605.0",
+  "inventoryReturnedToZero": true,
+  "existingDiamondPriorUnchanged": true,
+  "testScriptDisabledAfterRun": true
+}

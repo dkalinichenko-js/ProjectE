@@ -14,6 +14,9 @@ public final class MarketConfig {
     public boolean enabled = true;
     public double liquidityScale = 4096;
     public int maxOrder = 4096;
+    // Missing priors inherit legacy EMC with a symmetric initial spread.
+    public boolean legacyEmcFallback = true;
+    public double fallbackSpread = 0.25;
     public double indexTarget = 256;
     public Map<String, Double> indexBasket = new LinkedHashMap<>(Map.of(
         "minecraft:raw_iron", 1.0, "minecraft:raw_copper", 1.0, "minecraft:coal", 1.0,
@@ -34,7 +37,8 @@ public final class MarketConfig {
                 Files.createDirectories(path.getParent());
                 Files.writeString(path, GSON.toJson(config));
             }
-            if (config == null || !Double.isFinite(config.liquidityScale) || config.liquidityScale <= 0
+            if (config == null || !Double.isFinite(config.fallbackSpread) || config.fallbackSpread <= 0 || config.fallbackSpread >= 1
+                    || !Double.isFinite(config.liquidityScale) || config.liquidityScale <= 0
                     || config.maxOrder < 1 || config.maxOrder > 100000 || config.whitelist == null
                     || config.blacklist == null || config.rootPriors == null || config.indexBasket == null || config.indexBasket.isEmpty()
                     || !Double.isFinite(config.indexTarget) || config.indexTarget <= 0) throw new IllegalArgumentException("Invalid market config");

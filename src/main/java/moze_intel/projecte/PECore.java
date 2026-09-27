@@ -261,8 +261,6 @@ public class PECore {
 	}
 
 	private void dataPackSync(OnDatapackSyncEvent event) {
-        if (event.getPlayer() != null) moze_intel.projecte.market.MarketService.sync(event.getPlayer());
-        else for (ServerPlayer p : event.getPlayerList().getPlayers()) moze_intel.projecte.market.MarketService.sync(p);
 		if (emcUpdateResourceManager != null) {
 			long start = System.currentTimeMillis();
 			//Clear the cached created tags
@@ -276,6 +274,10 @@ public class PECore {
 			}
 			emcUpdateResourceManager = null;
 		}
+        // Legacy mapping must finish before missing market priors and client snapshots are populated.
+        moze_intel.projecte.market.MarketService.refreshFallbacks(event.getPlayerList().getServer());
+        if (event.getPlayer() != null) moze_intel.projecte.market.MarketService.sync(event.getPlayer());
+        else for (ServerPlayer p : event.getPlayerList().getPlayers()) moze_intel.projecte.market.MarketService.sync(p);
 		if (event.getPlayer() == null) {
 			List<ServerPlayer> players = event.getPlayerList().getPlayers();
 			if (players.isEmpty()) {
